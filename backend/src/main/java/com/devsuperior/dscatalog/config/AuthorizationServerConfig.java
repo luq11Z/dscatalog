@@ -73,30 +73,50 @@ public class AuthorizationServerConfig {
 	@Order(2)
 	public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Exception {
 
+		// Config OAuth server to work with spring security
 		OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 
 		// @formatter:off
 		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
 			.tokenEndpoint(tokenEndpoint -> tokenEndpoint
+				// Config token customizations 
 				.accessTokenRequestConverter(new CustomPasswordAuthenticationConverter())
-				.authenticationProvider(new CustomPasswordAuthenticationProvider(authorizationService(), tokenGenerator(), userDetailsService, passwordEncoder)));
+				// Config authentication, how to (authenticate, generate token and read credentials)
+				.authenticationProvider(new CustomPasswordAuthenticationProvider(
+						authorizationService(), tokenGenerator(), userDetailsService, passwordEncoder))
+				);
 
+		// Config spring security to use jwt
 		http.oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer.jwt(Customizer.withDefaults()));
 		// @formatter:on
 
+		// Pass the configurations to spring security
 		return http.build();
 	}
 
+	/**
+	 * Necessary in order to the configurations work.
+	 * @return
+	 */
 	@Bean
 	public OAuth2AuthorizationService authorizationService() {
 		return new InMemoryOAuth2AuthorizationService();
 	}
 
+	/**
+	 * Necessary in order to the configurations work.
+	 * @return
+	 */
 	@Bean
 	public OAuth2AuthorizationConsentService oAuth2AuthorizationConsentService() {
 		return new InMemoryOAuth2AuthorizationConsentService();
 	}
 
+	/**
+	 * Registers and configures the client configuration
+	 * allowed to have access according to our data.
+	 * @return
+	 */
 	@Bean
 	public RegisteredClientRepository registeredClientRepository() {
 		// @formatter:off
@@ -115,6 +135,10 @@ public class AuthorizationServerConfig {
 		return new InMemoryRegisteredClientRepository(registeredClient);
 	}
 
+	/**
+	 * Configures the token (duration).
+	 * @return
+	 */
 	@Bean
 	public TokenSettings tokenSettings() {
 		// @formatter:off
@@ -125,16 +149,29 @@ public class AuthorizationServerConfig {
 		// @formatter:on
 	}
 
+	/**
+	 * Instantiates the client settings application. 
+	 * Necessary in order to the configurations work.
+	 * @return
+	 */
 	@Bean
 	public ClientSettings clientSettings() {
 		return ClientSettings.builder().build();
 	}
 
+	/**
+	 * This bean is necessary in order to the configurations work.
+	 * @return
+	 */
 	@Bean
 	public AuthorizationServerSettings authorizationServerSettings() {
 		return AuthorizationServerSettings.builder().build();
 	}
 
+	/**
+	 * Token configurations and generation.
+	 * @return
+	 */
 	@Bean
 	public OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator() {
 		NimbusJwtEncoder jwtEncoder = new NimbusJwtEncoder(jwkSource());
@@ -144,6 +181,10 @@ public class AuthorizationServerConfig {
 		return new DelegatingOAuth2TokenGenerator(jwtGenerator, accessTokenGenerator);
 	}
 
+	/**
+	 * Token customizations configuration (including claims).
+	 * @return
+	 */
 	@Bean
 	public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
 		return context -> {
@@ -153,18 +194,30 @@ public class AuthorizationServerConfig {
 			if (context.getTokenType().getValue().equals("access_token")) {
 				// @formatter:off
 				context.getClaims()
-					.claim("authorities", authorities)
+					// User profiles
+					.claim("authorities", authorities) 
+					// User name
 					.claim("username", user.getUsername());
 				// @formatter:on
 			}
 		};
 	}
 
+	/**
+	 * JwtDecoder bean configuration.
+	 * @param jwkSource
+	 * @return
+	 */
 	@Bean
 	public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
 		return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
 	}
 
+	/**
+	 * RSA algorithm configuration. 
+	 * Generates the key to be used in the token. 
+	 * @return
+	 */
 	@Bean
 	public JWKSource<SecurityContext> jwkSource() {
 		RSAKey rsaKey = generateRsa();
@@ -172,6 +225,10 @@ public class AuthorizationServerConfig {
 		return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
 	}
 
+	/**
+	 * Helper to generate RSAKey to be used on the RSAKey bean.
+	 * @return
+	 */
 	private static RSAKey generateRsa() {
 		KeyPair keyPair = generateRsaKey();
 		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
@@ -179,6 +236,10 @@ public class AuthorizationServerConfig {
 		return new RSAKey.Builder(publicKey).privateKey(privateKey).keyID(UUID.randomUUID().toString()).build();
 	}
 
+	/**
+	 * Helper to generate KeyPair to be used on the RSAKey.
+	 * @return
+	 */
 	private static KeyPair generateRsaKey() {
 		KeyPair keyPair;
 		try {

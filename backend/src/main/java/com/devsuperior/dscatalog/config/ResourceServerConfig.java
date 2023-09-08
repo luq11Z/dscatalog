@@ -30,6 +30,13 @@ public class ResourceServerConfig {
 	@Value("${cors.origins}")
 	private String corsOrigins;
 
+	/**
+	 * Configures h2 on test profile. 
+	 * Enables the h2 console.
+	 * @param http
+	 * @return
+	 * @throws Exception
+	 */
 	@Bean
 	@Profile("test")
 	@Order(1)
@@ -40,17 +47,30 @@ public class ResourceServerConfig {
 		return http.build();
 	}
 
+	/**
+	 * Configures the security of the requests.
+	 * @param http
+	 * @return
+	 * @throws Exception
+	 */
 	@Bean
 	@Order(3)
 	public SecurityFilterChain rsSecurityFilterChain(HttpSecurity http) throws Exception {
 
 		http.csrf(csrf -> csrf.disable());
+		// Enable all requests. If any should be authorized, configure on the routes.
 		http.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
+		// Configures security the type of security
 		http.oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer.jwt(Customizer.withDefaults()));
+		// Enable cors configuration with our configurations.
 		http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
 		return http.build();
 	}
 
+	/**
+	 * Configuration to customize the token in order to work on the server.
+	 * @return
+	 */
 	@Bean
 	public JwtAuthenticationConverter jwtAuthenticationConverter() {
 		JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
@@ -62,6 +82,10 @@ public class ResourceServerConfig {
 		return jwtAuthenticationConverter;
 	}
 
+	/**
+	 * Cors configuration bean.
+	 * @return
+	 */
 	@Bean
 	CorsConfigurationSource corsConfigurationSource() {
 
@@ -78,6 +102,10 @@ public class ResourceServerConfig {
 		return source;
 	}
 
+	/**
+	 * Cors filter configuration bean.
+	 * @return
+	 */
 	@Bean
 	FilterRegistrationBean<CorsFilter> corsFilter() {
 		FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(
